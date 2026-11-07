@@ -1,7 +1,9 @@
 name: Build macOS
 
-# Manual check that Splicexx builds on macOS. Uploads the bundles as an
-# artifact only; it does not create a GitHub release.
+# Manual build of Splicexx for macOS. The app is ad-hoc signed (no Apple
+# certificate), so the bundle is sealed and is not reported as damaged. The
+# first launch still needs a one-time approval in System Settings. Uploads the
+# bundles as an artifact only; it does not create a GitHub release.
 on:
   workflow_dispatch:
 
@@ -29,6 +31,12 @@ jobs:
 
       - name: Build app bundles
         run: pnpm tauri build
+
+      - name: Check the bundle is sealed
+        run: |
+          APP=src-tauri/target/release/bundle/macos/Splicexx.app
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dvv "$APP"
 
       - name: Upload bundles
         uses: actions/upload-artifact@v4
