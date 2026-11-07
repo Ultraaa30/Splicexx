@@ -1,0 +1,37 @@
+{
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "Splicexx",
+    "version": "../package.json",
+    "identifier": "de.kosro.splicerr",
+    "build": {
+        "beforeDevCommand": "pnpm dev",
+        "devUrl": "http://localhost:1337",
+        "beforeBuildCommand": "pnpm build",
+        "frontendDist": "../build"
+    },
+    "app": {
+        "windows": [
+            {
+                "title": "Splicexx",
+                "width": 800,
+                "height": 600
+            }
+        ],
+        "security": {
+            "csp": {
+                "connect-src": "'self' ipc: blob: http://ipc.localhost http://tauri.localhost https://*.splice.com https://spliceproduction.s3.*.amazonaws.com https://*.amazonaws.com https://splice-res.cloudinary.com"
+            }
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ]
+    }
+}

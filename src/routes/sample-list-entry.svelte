@@ -1,0 +1,186 @@
+<script lang="ts">
+    import { globalAudio } from "$lib/shared/audio.svelte"
+    import PackPreview from "$lib/components/pack-preview.svelte"
+    import TagBadge from "$lib/components/tag-badge.svelte"
+    import Waveform from "$lib/components/waveform.svelte"
+    import type { SampleAsset } from "$lib/splice/types"
+    import CircleX from "lucide-svelte/icons/circle-x"
+    import Pause from "lucide-svelte/icons/pause"
+    import Play from "lucide-svelte/icons/play"
+    import Button from "$lib/components/ui/button/button.svelte"
+    import * as Tooltip from "$lib/components/ui/tooltip/index.js"
+    import LoaderCircle from "lucide-svelte/icons/loader-circle"
+    import { dataStore, fetchAssets } from "$lib/shared/store.svelte"
+    import { cn, formatKey } from "$lib/utils"
+    import { loading } from "$lib/shared/loading.svelte"
+    import { assetIcons } from "$lib/shared/icons.svelte"
+    import {handleSampleDrag} from "$lib/shared/drag.svelte"
+    import { isFavorite, toggleFavorite } from "$lib/shared/favorites.svelte"
+    import { prefetchSample } from "$lib/shared/files.svelte"
+    import { transform } from "$lib/shared/transform.svelte"
+    import Star from "lucide-svelte/icons/star"
+
+    let {
+        class: className,
+        selected,
+        playing,
+        sampleAsset,
+    }: {
+        class?: string
+        selected: boolean
+        playing: boolean
+        sampleAsset: SampleAsset
+    } = $props()
+
+    let playButtonRef = $state<HTMLButtonElement>(null!)
+    let prefetchTimer: ReturnType<typeof setTimeout> | undefined
+
+    $effect(() => {
+        if (selected) {
+            playButtonRef.focus({ preventScroll: true })
+        }
+    })
+
+    const pack = $derived(sampleAsset.parents.items[0])
+    const name = $derived(sampleAsset.name.split("/").slice(-1))
+    const waveformUrl = $derived(
+        sampleAsset.files.find((file) => file.asset_file_type_slug == "waveform")
+            ?.url ?? sampleAsset.files[1]?.url
+    )
+
+    const targetBpm = $derived(transform.bpm && sampleAsset.bpm ? transform.bpm : null)
+    const targetKey = $derived(transform.key && sampleAsset.key ? transform.key : null)
+
+    const millisToMinutesAndSeconds = (millis: number) => {
+        var minutes = Math.floor(millis / 60000)
+        var seconds = Math.floor((millis % 60000) / 1000)
+        return minutes + ":" + (seconds < 10 ? "0" : "") + seconds
+    }
+</script>
+
+<button
+    class={cn(
+        "flex gap-4 items-center justify-between px-3 py-2 rounded-xl focus:outline-none cursor-grab hover:bg-muted/60 transition-colors",
+        selected && "bg-muted hover:bg-muted",
+        className
+    )}
+    id={`sample-list-entry-${sampleAsset.uuid}`}
+    draggable="true"
+    tabindex="-1"
+    onmousedown={() => {
+        globalAudio.selectSampleAsset(sampleAsset, false)
+        prefetchSample(sampleAsset)
+    }}
+    onpointerenter={() => {
+        prefetchTimer = setTimeout(() => prefetchSample(sampleAsset), 250)
+    }}
+    onpointerleave={() => clearTimeout(prefetchTimer)}
+    ondragstart={(event) => handleSampleDrag(event, sampleAsset)}
+>
+    <PackPreview {pack} />
+    <Button
+        variant="ghost"
+        bind:ref={playButtonRef}
+        class="group flex-shrink-0 focus:outline-none"
+        size="icon-lg"
+        onclick={() =>
+            playing
+                ? globalAudio.ref.pause()
+                : globalAudio.playSampleAsset(sampleAsset)}
+    >
+        {#if (selected && globalAudio.loading) || (loading.samplesCount && loading.samples.has(sampleAsset.uuid))}
+            <LoaderCircle class="animate-spin" />
+        {:else if playing}
+            <Pause />
+        {:else}
+            <Play class="group-hover:block hidden" />
+            {#if sampleAsset.asset_category_slug in assetIcons}
+                {@const Icon = assetIcons[sampleAsset.asset_category_slug]}
+                <Icon class="group-hover:hidden" />
+            {:else}
+                <CircleX class="group-hover:hidden" />
+            {/if}
+        {/if}
+    </Button>
+    <div class="min-w-32 w-96 flex-[3_1_auto] overflow-clip">
+        <div
+            class="text-left"
+        >
+            <Tooltip.Provider>
+                <Tooltip.Root>
+                    <Tooltip.Trigger
+                        class="overflow-clip text-nowrap cursor-grab"
+                    >
+                        {name}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>
+                        {name}
+                    </Tooltip.Content>
+                </Tooltip.Root>
+            </Tooltip.Provider>
+            <div class="flex gap-0.5 text-xs overflow-clip text-nowrap">
+                {#each sampleAsset.tags as tag}
+                    {@const active = dataStore.tags.includes(tag.uuid)}
+                    {@const tag_summary_tag = dataStore.tag_summary.find(
+                        (t: any) => t.tag.uuid == tag.uuid
+                    )}
+                    <TagBadge
+                        label={tag.label}
+                        variant="ghost"
+                        class="px-1 py-0.5 h-auto"
+                        count={tag_summary_tag?.count ?? 0}
+                        onclick={() => {
+                            if (!active) {
+                                dataStore.tags.push(tag.uuid)
+                                // updateTagSummary()
+                                fetchAssets()
+                            }
+                        }}
+                    />
+                {/each}
+            </div>
+        </div>
+    </div>
+    <Waveform
+        src={waveformUrl}
+        progress={selected ? globalAudio.progress() : 0}
+        onseek={(progress) => {
+            const startTime = progress * (sampleAsset.duration / 1000)
+            globalAudio.playSampleAsset(sampleAsset, startTime)
+        }}
+        class="min-w-32 w-[150px] h-12 flex-grow md:block hidden"
+    />
+    <div class="text-muted-foreground flex-shrink-0 w-14 flex-grow">
+        {millisToMinutesAndSeconds(sampleAsset.duration)}
+    </div>
+    <div class="text-muted-foreground flex-shrink-0 w-14 flex-grow">
+        {(sampleAsset.key &&
+            formatKey(sampleAsset.key, sampleAsset.chord_type)) ??
+            "--"}
+        {#if targetKey}
+            <div class="text-[11px] text-[#0a84ff]">→ {targetKey}</div>
+        {/if}
+    </div>
+    <div class="text-muted-foreground flex-shrink-0 w-14 flex-grow">
+        {sampleAsset.bpm ?? "--"}
+        {#if targetBpm}
+            <div class="text-[11px] text-[#0a84ff]">→ {targetBpm}</div>
+        {/if}
+    </div>
+    <Button
+        variant="ghost"
+        size="icon"
+        class="flex-shrink-0 focus:outline-none"
+        aria-label="Toggle favorite"
+        onclick={(event) => {
+            event.stopPropagation()
+            toggleFavorite(sampleAsset)
+        }}
+    >
+        <Star
+            class={isFavorite(sampleAsset.uuid)
+                ? "fill-current text-yellow-400"
+                : "text-muted-foreground"}
+        />
+    </Button>
+</button>
