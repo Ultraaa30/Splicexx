@@ -55,9 +55,7 @@ Splice's search endpoint only accepts requests that come from its own website. S
 BPM and key changes use [SoundTouchJS](https://github.com/cutterbl/SoundTouchJS). They run in a Web Worker so the interface stays responsive, and each processed file is cached by its target values.
 
 ## Credits
-
-- Based on [splicerr](https://github.com/robert-k/splicerr) by Robert-K (MIT), the Svelte and Tauri frontend this project grew from.
-- Inspired by [splicedd](https://github.com/ascpixi/splicedd) by ascpixi.
+- Inspired by [splicedd](https://github.com/ascpixi/splicedd) by ascpixi and [splicerr](https://github.com/robert-k/splicerr) by Robert-K
 - Showcase background: *The Starry Night* by Vincent van Gogh (1889), public domain, from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Van_Gogh_-_Starry_Night_2.jpg).
 - Made by Ultraaa30.
 
