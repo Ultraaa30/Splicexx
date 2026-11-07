@@ -1,6 +1,6 @@
 [package]
 name = "splicexx"
-version = "1.0.0"
+version = "1.0.1"
 description = "Yet another Splice frontend, inspired by ascpixi"
 authors = ["kosro"]
 edition = "2021"
