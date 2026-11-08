@@ -158,31 +158,37 @@ export async function getDescrambledSampleURL(sampleAsset: SampleAsset) {
     loading.samples.add(sampleAsset.uuid)
     loading.samplesCount++
 
-    const previewUrl = sampleAsset.files.find(
-        (file) => file.asset_file_type_slug == "preview_mp3"
-    )?.url
-    if (!previewUrl) throw new Error(`No preview file for ${sampleAsset.uuid}`)
+    try {
+        const previewUrl = sampleAsset.files.find(
+            (file) => file.asset_file_type_slug == "preview_mp3"
+        )?.url
+        if (!previewUrl) throw new Error(`No preview file for ${sampleAsset.uuid}`)
 
-    const response = await fetch(previewUrl)
+        const response = await fetch(previewUrl)
+        if (!response.ok) {
+            throw new Error(`Preview request failed with status ${response.status}`)
+        }
 
-    const data = new Uint8Array(await response.arrayBuffer())
+        const data = new Uint8Array(await response.arrayBuffer())
 
-    const descrambledData = descrambleSample(data)
+        const descrambledData = descrambleSample(data)
 
-    const blob = new Blob([descrambledData], {
-        type: "audio/mp3",
-    })
+        const blob = new Blob([descrambledData], {
+            type: "audio/mp3",
+        })
 
-    const blobURL = window.URL.createObjectURL(blob)
+        const blobURL = window.URL.createObjectURL(blob)
 
-    dataStore.descrambledSamples.set(sampleAsset.uuid, blobURL)
+        dataStore.descrambledSamples.set(sampleAsset.uuid, blobURL)
 
-    loading.samples.delete(sampleAsset.uuid)
-    loading.samplesCount--
+        console.info("🔗 Created descrambled sample blob")
 
-    console.info("🔗 Created descrambled sample blob")
-
-    return blobURL
+        return blobURL
+    } finally {
+        // Always release the loading state, even when the download or descrambling fails.
+        loading.samples.delete(sampleAsset.uuid)
+        loading.samplesCount--
+    }
 }
 
 export function freeDescrambledSample(uuid: string) {

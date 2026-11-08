@@ -20,12 +20,16 @@ function descramblePass(
     encodingBlock: string,
     dataSize: number
 ) {
+    // Writes past the end of data do nothing, so stop there. A bad header can declare
+    // a huge dataSize (for example when the server returns an HTML error page), and
+    // without this bound the loop would run for practically forever and freeze the app.
+    const end = Math.min(dataSize, data.length)
     for (
-        let encodingIndex = 0;
-        startIndex < dataSize;
-        startIndex++, encodingIndex = (encodingIndex + 1) % encodingBlock.length
+        let index = startIndex, encodingIndex = 0;
+        index < end;
+        index++, encodingIndex = (encodingIndex + 1) % encodingBlock.length
     ) {
-        data[startIndex] ^= encodingBlock.charCodeAt(encodingIndex)
+        data[index] ^= encodingBlock.charCodeAt(encodingIndex)
     }
-    return startIndex
+    return Math.max(startIndex, dataSize)
 }
